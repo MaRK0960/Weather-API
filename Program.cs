@@ -14,22 +14,26 @@ var app = builder.Build();
 
 app.UseCors(c => c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
+//smtp username     ***REMOVED***
+//value             ***REMOVED***
+//secret id         ***REMOVED***
+
 app.MapPost("/subscribe", async (HttpRequest request) =>
 {
     using StreamReader stream = new(request.Body);
     string email = await stream.ReadToEndAsync();
 
-    SendEmail("***REMOVED***", "***REMOVED***", "***REMOVED***", "test send mail", "test send mail");
+    SendEmail("***REMOVED***", "test send mail", "test send mail");
 });
 
-static void SendEmail(string fromAddress, string password, string toAddress, string subject, string body)
+static void SendEmail(string toAddress, string subject, string body)
 {
     try
     {
         // Create the MailMessage object
         MailMessage mail = new()
         {
-            From = new MailAddress(fromAddress)
+            From = new MailAddress("***REMOVED***")
         };
 
         mail.To.Add(toAddress);
@@ -37,9 +41,9 @@ static void SendEmail(string fromAddress, string password, string toAddress, str
         mail.Body = body;
 
         // Configure SMTP client
-        SmtpClient smtpClient = new("smtp.office365.com", 587)
+        SmtpClient smtpClient = new("smtp.azurecomm.net", 587)
         {
-            Credentials = new NetworkCredential(fromAddress, password),
+            Credentials = new NetworkCredential("***REMOVED***", "***REMOVED***"),
             EnableSsl = true, // Use SSL to encrypt the connection
             DeliveryMethod = SmtpDeliveryMethod.Network
         };
