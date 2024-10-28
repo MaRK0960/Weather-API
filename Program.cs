@@ -1,5 +1,7 @@
-using System.Net;
-using System.Net.Mail;
+using Azure;
+using Azure.Data.Tables;
+using Azure.Data.Tables.Models;
+using Weather_API;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,11 @@ var app = builder.Build();
 
 app.UseCors(c => c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
+TableServiceClient tableServiceClient = new("***REMOVED***");
+Response<TableItem> table = tableServiceClient.CreateTableIfNotExists("Emails");
+
+TableClient tableClient = tableServiceClient.GetTableClient(table.Value.Name);
+
 //smtp username     ***REMOVED***
 //value             ***REMOVED***
 //secret id         ***REMOVED***
@@ -23,38 +30,32 @@ app.MapPost("/subscribe", async (HttpRequest request) =>
     using StreamReader stream = new(request.Body);
     string email = await stream.ReadToEndAsync();
 
-    SendEmail("***REMOVED***", "test send mail", "test send mail");
+    if (!IsValidEmail(email))
+    {
+        return Results.BadRequest("Wrong email format");
+    }
+
+    tableClient.UpsertEntity(new Email(email));
+
+    return Results.Ok();
 });
 
-static void SendEmail(string toAddress, string subject, string body)
+bool IsValidEmail(string email)
 {
+    var trimmedEmail = email.Trim();
+
+    if (trimmedEmail.EndsWith("."))
+    {
+        return false; // suggested by @TK-421
+    }
     try
     {
-        // Create the MailMessage object
-        MailMessage mail = new()
-        {
-            From = new MailAddress("***REMOVED***")
-        };
-
-        mail.To.Add(toAddress);
-        mail.Subject = subject;
-        mail.Body = body;
-
-        // Configure SMTP client
-        SmtpClient smtpClient = new("smtp.azurecomm.net", 587)
-        {
-            Credentials = new NetworkCredential("***REMOVED***", "***REMOVED***"),
-            EnableSsl = true, // Use SSL to encrypt the connection
-            DeliveryMethod = SmtpDeliveryMethod.Network
-        };
-
-        // Send the email
-        smtpClient.Send(mail);
-        Console.WriteLine("Email sent successfully.");
+        var addr = new System.Net.Mail.MailAddress(email);
+        return addr.Address == trimmedEmail;
     }
-    catch (Exception ex)
+    catch
     {
-        Console.WriteLine("Error: " + ex.Message);
+        return false;
     }
 }
 
