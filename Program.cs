@@ -37,6 +37,11 @@ app.MapPost("/subscribe", async (HttpRequest request) =>
 
     tableClient.UpsertEntity(new Email(email));
 
+    using (HttpClient client = new())
+    {
+        await client.GetAsync($"***REMOVED***{email}");
+    }
+
     return Results.Ok();
 });
 
