@@ -14,8 +14,8 @@ var app = builder.Build();
 
 //app.UseHttpsRedirection();
 
-app.UseCors(c => 
-    c.WithOrigins("azurestaticapps.net")
+app.UseCors(c =>
+    c.WithOrigins("***REMOVED***", "http://127.0.0.1:5500/")
     .WithMethods(HttpMethod.Post.Method));
 
 TableServiceClient tableServiceClient = new("***REMOVED***");
