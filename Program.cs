@@ -14,7 +14,9 @@ var app = builder.Build();
 
 //app.UseHttpsRedirection();
 
-app.UseCors(c => c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+app.UseCors(c => 
+    c.WithOrigins("azurestaticapps.net")
+    .WithMethods(HttpMethod.Post.Method));
 
 TableServiceClient tableServiceClient = new("***REMOVED***");
 Response<TableItem> table = tableServiceClient.CreateTableIfNotExists("Emails");
