@@ -10,6 +10,10 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors();
 
+builder.Configuration.AddAzureAppConfiguration(a =>
+    a.ConfigureKeyVault(c => c.Register(new SecretClient(new Uri("https://weather-vault.vault.azure.net/"), new DefaultAzureCredential())))
+    .Connect(new Uri("https://weather-configuration.azconfig.io"), new DefaultAzureCredential()));
+
 WebApplication app = builder.Build();
 
 app.UseHttpsRedirection();
@@ -18,10 +22,7 @@ app.UseCors(c =>
     c.SetIsOriginAllowed(a => new Uri(a).IsLoopback)
 );
 
-SecretClient client = new(new("https://weather-vault.vault.azure.net/"), new DefaultAzureCredential());
-Response<KeyVaultSecret> connectionStringSecret = await client.GetSecretAsync("Weather-Table-Connection-String");
-
-TableServiceClient tableServiceClient = new(connectionStringSecret.Value.Value);
+TableServiceClient tableServiceClient = new(app.Configuration["Weather-Table-Connection-String"]);
 Response<TableItem> table = tableServiceClient.CreateTableIfNotExists("Emails");
 
 TableClient tableClient = tableServiceClient.GetTableClient(table.Value.Name);
@@ -45,7 +46,7 @@ app.MapPost("/subscribe", async (HttpRequest request) =>
         await tableClient.UpsertEntityAsync(emailEntity);
 
         using HttpClient client = new();
-        await client.GetAsync($"***REMOVED***{email}");
+        await client.GetAsync($"{app.Configuration["Welcome-Email-Function-API"]}{email}");
     }
 
     return Results.Ok();
