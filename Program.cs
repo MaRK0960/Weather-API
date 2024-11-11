@@ -15,8 +15,8 @@ var app = builder.Build();
 //app.UseHttpsRedirection();
 
 app.UseCors(c =>
-    c.WithOrigins("***REMOVED***", "http://127.0.0.1:5500/")
-    .WithMethods(HttpMethod.Post.Method));
+    c.SetIsOriginAllowed(a => new Uri(a).IsLoopback)
+    );
 
 TableServiceClient tableServiceClient = new("***REMOVED***");
 Response<TableItem> table = tableServiceClient.CreateTableIfNotExists("Emails");
