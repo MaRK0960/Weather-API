@@ -11,8 +11,8 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors();
 
 builder.Configuration.AddAzureAppConfiguration(a =>
-    a.ConfigureKeyVault(c => c.Register(new SecretClient(new Uri("https://weather-vault.vault.azure.net/"), new DefaultAzureCredential())))
-    .Connect(new Uri("https://weather-configuration.azconfig.io"), new DefaultAzureCredential()));
+    a.ConfigureKeyVault(c => c.Register(new SecretClient(new Uri(builder.Configuration["Endpoints:KeyVault"]!), new DefaultAzureCredential())))
+    .Connect(new Uri(builder.Configuration["Endpoints:AppConfiguration"]!), new DefaultAzureCredential()));
 
 WebApplication app = builder.Build();
 
