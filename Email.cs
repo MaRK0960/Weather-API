@@ -19,5 +19,7 @@ namespace Weather_API
             ETag = new ETag(email);
             EmailAddress = email;
         }
+
+        public Email() { }
     }
 }
