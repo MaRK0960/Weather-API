@@ -1,8 +1,8 @@
-using Azure;
-using Azure.Data.Tables;
-using Azure.Data.Tables.Models;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Net.Http.Headers;
 using System.Net.Mail;
 using Weather_API;
 
@@ -20,36 +20,50 @@ app.UseHttpsRedirection();
 
 app.UseCors(c =>
     c.SetIsOriginAllowed(a => new Uri(a).IsLoopback)
+     .WithHeaders(HeaderNames.ContentType)
 );
 
-TableServiceClient tableServiceClient = new(app.Configuration["Weather-Table-Connection-String"]);
-Response<TableItem> table = tableServiceClient.CreateTableIfNotExists("Emails");
+CosmosClient client = new(
+    accountEndpoint: app.Configuration["Weather-Cosmos-URI"],
+    tokenCredential: new DefaultAzureCredential()
+);
 
-TableClient tableClient = tableServiceClient.GetTableClient(table.Value.Name);
+Database database = client.GetDatabase("Weather");
+Container container = database.GetContainer("Users");
 
-app.MapPost("/subscribe", async (HttpRequest request) =>
+app.MapPost("/subscribe", async (Subscription subscription) =>
 {
-    using StreamReader stream = new(request.Body);
-    string email = await stream.ReadToEndAsync();
-
-    if (!IsValidEmail(email))
+    if (!IsValidEmail(subscription.Email))
     {
         return Results.BadRequest("Wrong email format");
     }
 
-    Email emailEntity = new(email);
+    FeedIterator<WeatherUser> feed = container
+        .GetItemLinqQueryable<WeatherUser>()
+        .Where(s => s.Email == subscription.Email)
+        .ToFeedIterator();
 
-    NullableResponse<Email> response = await tableClient.GetEntityIfExistsAsync<Email>(emailEntity.PartitionKey, emailEntity.RowKey);
-
-    if (!response.HasValue)
+    if (feed.HasMoreResults)
     {
-        await tableClient.UpsertEntityAsync(emailEntity);
+        FeedResponse<WeatherUser> response = await feed.ReadNextAsync();
+        WeatherUser? existingSubscription = response.FirstOrDefault(s => s.Email == subscription.Email);
 
-        using HttpClient client = new();
-        await client.GetAsync($"{app.Configuration["Welcome-Email-Function-API"]}{email}");
+        if (existingSubscription is not null)
+        {
+            existingSubscription.NotificationTime = ExtractHours(subscription.NotificationTime);
+            existingSubscription.DeltaTemperature = subscription.DeltaTemperature;
+
+            await container.UpsertItemAsync(existingSubscription);
+            return Results.Ok();
+        }
     }
 
-    return Results.Ok();
+    await container.UpsertItemAsync(new WeatherUser(Guid.NewGuid(), subscription.Email, subscription.DeltaTemperature, ExtractHours(subscription.NotificationTime)));
+
+    using HttpClient client = new();
+    await client.GetAsync($"{app.Configuration["Welcome-Email-Function-API"]}{subscription.Email}");
+
+    return Results.Created();
 });
 
 static bool IsValidEmail(string email)
@@ -68,6 +82,16 @@ static bool IsValidEmail(string email)
     {
         return false;
     }
+}
+
+static int[] ExtractHours(TimeOnly[]? times)
+{
+    if (times is null)
+        return [];
+
+    return times
+        .Select(t => t.Hour)
+        .ToArray();
 }
 
 app.Run();
