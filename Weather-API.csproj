@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.13.1" />
+    <PackageReference Include="Azure.Messaging.EventGrid" Version="4.28.0" />
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.45.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="8.0.0" />
   </ItemGroup>

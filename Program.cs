@@ -1,4 +1,5 @@
 using Azure.Identity;
+using Azure.Messaging.EventGrid;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
@@ -31,6 +32,8 @@ CosmosClient client = new(
 Database database = client.GetDatabase("Weather");
 Container container = database.GetContainer("Users");
 
+EventGridPublisherClient eventGridPublisherClient = new(new Uri(app.Configuration["Weather-Grid-Event-URI"]!), new DefaultAzureCredential());
+
 app.MapPost("/subscribe", async (Subscription subscription) =>
 {
     if (!IsValidEmail(subscription.Email))
@@ -54,14 +57,14 @@ app.MapPost("/subscribe", async (Subscription subscription) =>
             existingSubscription.DeltaTemperature = subscription.DeltaTemperature;
 
             await container.UpsertItemAsync(existingSubscription);
+            await eventGridPublisherClient.SendEventAsync(CreateEvent(true, subscription.Email));
             return Results.Ok();
         }
     }
 
     await container.UpsertItemAsync(new WeatherUser(Guid.NewGuid(), subscription.Email, subscription.DeltaTemperature, ExtractHours(subscription.NotificationTime)));
 
-    using HttpClient client = new();
-    await client.GetAsync($"{app.Configuration["Welcome-Email-Function-API"]}{subscription.Email}");
+    await eventGridPublisherClient.SendEventAsync(CreateEvent(false, subscription.Email));
 
     return Results.Created();
 });
@@ -92,6 +95,11 @@ static int[] ExtractHours(TimeOnly[]? times)
     return times
         .Select(t => t.Hour)
         .ToArray();
+}
+
+static BinaryData CreateEvent(bool isUpdate, string email)
+{
+    return BinaryData.FromObjectAsJson((isUpdate, email));
 }
 
 app.Run();
