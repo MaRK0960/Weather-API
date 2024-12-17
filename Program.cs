@@ -97,9 +97,9 @@ static int[] ExtractHours(TimeOnly[]? times)
         .ToArray();
 }
 
-static BinaryData CreateEvent(bool isUpdate, string email)
+static EventGridEvent CreateEvent(bool isUpdate, string email)
 {
-    return BinaryData.FromObjectAsJson((isUpdate, email));
+    return new($"user/{(isUpdate ? "update" : "new")}", "user-action", string.Empty, BinaryData.FromObjectAsJson((isUpdate, email)));
 }
 
 app.Run();
